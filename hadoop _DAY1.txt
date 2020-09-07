@@ -1,0 +1,95 @@
+9/7 오전수업
+
+[리눅스 기본 환경 설정]
+1. 리눅스 한국어 입력 환경 설정
+프로그램 > 시스템도구 > 설정 > 지역 및 언어 > + 한국어 한국어(Hangul) 추가 > 기존 한국어 삭제 (한/영 전환 shift+space바) > 톱니바퀴 > 단어단위로 입력 체크 / Hangul 제거 > 한자: F9만 남기고 제거 
+2. 화면 잠금 해제 
+프로그램 > 시스템도구 > 설정  > 개인정보 > 화면 잠금 끔
+3. 리눅스 탈출 단축키
+VM > 파일 > 환경설정 > 입력 > 가상머신 > 호스트 키 조합 : LEFT Windows + 자동으로 잡기 체크
+4. 리눅스 저장공간 확인
+VM > 설정 > 저장소 > 가상크기 30GB / 실제크기 5GB / 동적 할당
+
+9/7 오후수업
+1. https://hadoop.apache.org/releases.html 
+	하둡 다운로드 2.10 버전 binary 
+
+	다운받은 하둡파일 root 폴더로 이동(이름변경)
+	1. cd 다운로드 
+	2. mv hadoop-2.10.0.tar.gz ../hadoop2.tar.gz
+	3. tar zxvf hadoop2.tar.gz
+	4. rm hadoop2.tar.gz > y
+	5. mv hadoop-2.10.0 hadoop2
+
+2. HADOOP 실습
+	(1) 하둡 기본설정 
+	consol > gedit /etc/profile 
+
+	export HADOOP_HOME=/root/hadoop2
+	export PATH=$PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
+
+	export HDFS_NAMENODE_USER="root"
+	export HDFS_DATANODE_USER="root"
+	export HDFS_SECONDARYNAMENODE_USER="root"
+	export YARN_RESOURCEMANAGER_USER="root"
+	export YARN_NODEMANAGER_USER="root"
+1) 독립 모드(Standalone Mode) - 기본 테스트용
+>저장 후 리눅스 재부팅 > consol > hadoop version 실행 확인		
+	consol > hadoop jar $HADOOP_HOME/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.10.0.jar wordcount $HADOOP_HOME/etc/hadoop/hadoop-env.sh wordcount_output
+	
+	hadoop을 실행한 위치에 wordcount_output폴더가 생성 
+	폴더 내부에 part-...을 gedit으로 읽어보자.
+	cd wordcount_output
+	ll
+	gedit part-r-0000
+
+2) 의사 분산 모드
+	(1)인증키 작성(비밀키와 공개키 생성)
+		원격 접속 : ssh localhost / yes / 1111 > 새로운 서버 접속 / exit 
+		- 현재 위치가 home 디렉토리(root)인지 확인
+		- ls -al 로 숨겨진 폴더나 파일까지 확인 
+				.ssh 폴더 확인 > cd .ssh  
+		- ssh-keygen -t rsa > 인증키 생성 > ll 키생성 확인 
+		- 공개키를 상대 서버(slave)에 전송
+				cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys    실습중이니 이렇게 실행 > 원래는 winscp사용
+		- 다시 접속 테스트 
+				ssh localhost > 패스워드 물어보지 않아야함
+
+	(2) hadoop 세팅
+
+		- gedit $HADOOP_HOME/etc/hadoop/hadoop-env.sh
+			export JAVA_HOME=/usr/local/jdk11
+		- gedit $HADOOP_HOME/etc/hadoop/core-site.xml   >어떤애가 마스터인지 결정하는작업
+			<configuration>
+				<property>
+					<name>fs.defaultFS</name>
+					<value>hdfs://localhost:9000</value>
+				</property>
+			<configuration>
+		- gedit $HADOOP_HOME/etc/hadoop/hdfs-site.xml
+			<configuration>
+				<property>
+					<name>dfs.replication</name>
+					<value>1</value>
+				</property>
+			<configuration>
+
+	(3) 네임노드 포맷 
+		hdfs namenode -format
+
+	(4) 하둡 클러스터 시작(하둡 분산 파일 시스템 시작)
+		start-dfs.sh
+
+	(5) jps로 프로세스 확인
+		Jps
+		NameNode
+		DataNode
+		SecondaryNameNode
+	(6) 프로세스가 제대로 실행이 안될 경우 
+		stop-dfs.sh
+		hdfs namenode -format
+		start-dfs.sh
+	(7) stop-dfs.sh 
+		정상적으로 종료必
+
+			
