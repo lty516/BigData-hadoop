@@ -1,0 +1,161 @@
+(8) 모니터링 
+	- 로컬에서 확인 : localhost:50070/dfshealth.html#tab-overview 접속해서 노드 정보 확인
+	- 원격으로 확인 : VM > master 설정 > 네트워크 포트포워드 > + 192.168.10.1 / 50070 / 10.0.2.15 / 50070 추가 
+		리눅스에서 방화벽 개방 
+		firwall-cmd --zone=public --add-port=50070/tcp --permanent
+		firewall-cmd --reload
+
+		virtualbox에서 포워딩
+(9) YARN 실행 : NodeManager, ResourceManager
+	- start-yarn.sh     
+	  jps
+(10) ResourceManager를 모니터링
+	- 로컬에서 확인 : http://localhost:8088
+(11) 종료
+	- stop-dfs.sh
+	 jps
+	- stop-yarn.sh
+	 jps
+(12) hdsf 활용
+	- start-dfs.sh
+
+	hdfs dfs -mkdir /user  <가상공간에 폴더 생성>
+	hdfs dfs -ls /
+
+	hdfs dfs -mkdir /user/root
+	hdfs dfs -mkdir /user/centos
+	hdfs dfs -ls /
+
+	hdfs dfs -mkdir /user/root/conf
+	hdfs dfs -ls -R / <모든 디렉토리 검색>
+
+	현재 로컬에 있는 readme.tct 파일을 hdfs로 업로드
+	hdfs dfs -copyFromLocal $HADOOP_HOME/README.txt /user
+	hdfs dfs -ls /user
+	
+	hadoop jar $HADOOP_HOME/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.10.0.jar wordcount /user/README.txt wordcount_output
+	
+	hdfs dfs -ls
+	hdfs dfs -ls wordcount_output
+
+	hdfs dfs -cat wordcount_output/part-r-00000
+
+(3) 완전 분산 모드
+	(1) 시스템 구성
+               host os : windows
+               vm : vitualbox
+                  - ip :192.168.10.1
+                  - ip :192.168.10.2
+               guest os1 : master
+                  - ram : 2g
+                  - hdd : 30g
+	      - ip :192.168.10.10
+                  - ip :192.168.10.10
+               guest os2 : slave1
+                  - ram : 1g
+                  - hdd : 30g
+                  - ip : 192.168.10.11
+               guest os3 : slave2
+                  - ram : 1g
+                  - hdd : 30g
+                  - ip : 192.168.10.12
+
+               guest os4 : slave3   > 컴퓨터 사양으로 인해 미사용
+                  - ram : 1g
+                  - hdd : 30g
+                  - ip : 192.168.10.13
+	
+(2) master에 랜카드 하나 더 추가
+	virtualbox 관리자  > 파일 > 호스트 네트워크 관리자 > 만들기 
+	 ip : 192.168.10.2로 변경 / DHCP 서버 사용 안함 
+	master 설정 > 네트워크 어댑터2 > 네트워크 어댑터 사용하기 > 호스트 전용 어댑터 선택 
+	나머지도 똑같이 
+	maser > 설정 > 네트워크  > 이더넷 3 켬 / 이더넷8 켬 확인
+	
+	- master에서 설정
+		cd /etc/sysconfig/network-scripts/
+		ll
+		cat ifcfg-enp0s3
+
+		gedit ifcfg-eng0s8   <새로 만들기>
+		---------------------------
+		DEVICE=enp0s8
+		ONBOOT=yes
+		BOOTPROTO=static
+		IPADDR=192.168.10.10
+		NETMASK=255.255.255.0
+		---------------------------
+		
+		systemctl restart network
+		ifconfig > enp0s3(10.0.2.15), enp0s8(192.168.10.10) ip 확인
+		
+		나머지 slave들도 동일하게 설정(ip만 다르게)
+	- ping 명령어로 확인
+		master에서 
+			ping 192.168.10.11 
+			중지는 ctrl + c
+			ping 192.168.10.12
+			ping 192.168.10.13
+		slave1 에서 
+			ping 192.168.10.10 
+			ping 192.168.10.12
+			ping 192.168.10.13
+		slave2 에서 
+			ping 192.168.10.10
+			ping 192.168.10.11
+			ping 192.168.10.13
+	- ssh 192.168.10.11  - yes
+
+(3) 각 guest os 의 host명을 변경(모든 노드에서 실행)
+	gedit /etc/hosts
+	---------------------
+	127.0.0.1 localhost
+	192.168.10.10 master
+	192.168.10.11 slave1
+	192.168.10.12 slave2
+	192.168.10.13 slave3
+	---------------------
+(4) host와 hostname을 일치 시키는 작업 
+	master에서 
+		gedit /etc/hostname
+		---------------------
+		master
+		---------------------
+		
+		/bin/hostname -F /etc/hostname
+		reboot
+	
+	나머지 slave도 동일하게 설정 
+
+	master에서 ping test
+			ping slave1
+			ping slave2
+			ping slave3
+
+		root@master
+		root@slave1
+		root@slave2
+		root@slave3
+(5) 인증키 전달
+	master에서 
+		ssh slave1
+		exit
+		ssh slave2
+		exit
+	slave1,2에서 
+		ssh master
+		exit
+		ssh slave1,2
+		exit
+	나머지 slave에서도 동일하게 테스트 
+	
+	만약 인증이 풀렸을 경우
+	r : recursive : 하위 디렉토리 및 파일을 모두 전송
+	p : persistence : 원본파일 수정 / 사용시간 및 권한 유지함
+	
+	scv-rp ~/.ssh/authorized_keys >>  root@slave1:~/.ssh/authorized_keys
+	scv-rp ~/.ssh/authorized_keys >>  root@slave2:~/.ssh/authorized_keys
+	scv-rp ~/.ssh/authorized_keys >>  root@slave3:~/.ssh/authorized_keys
+
+
+
