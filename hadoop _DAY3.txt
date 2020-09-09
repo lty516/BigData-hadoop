@@ -1,0 +1,168 @@
+9/9
+	(6) Hadoop 세팅
+		a) hadoop-env.sh 수정(master에서만 실행)
+			- gedit $HADOOP_HOME/etc/hadoop/hadoop-env.sh 
+				자바의 경로 수정
+				
+				export HADOOP_PID_DIR=/root/hadoop2/pids
+
+		b) core-site.xml 수정(모든 노드에서 실행)
+			- gedit $HADOOP_HOME/etc/hadoop/core-site.xml 
+				<configuration>
+					<property>
+						<name>fs.defaultFS</name>
+						<value>hdfs://master:9000</value>
+					</property>
+				</configuration>	
+
+		c) hdfs-site.xml 수정
+			- master에서만 작업
+				rm -rf $HADOOP_HOME/namenode
+				mkdir $HADOOP_HOME/namenode
+				cd $HADOOP_HOME/	
+				ls -l
+				chown root -R $HADOOP_HOME/namenode
+				chmod 777 $HADOOP_HOME/namenode
+
+				rm -rf $HADOOP_HOME/datanode
+				mkdir $HADOOP_HOME/datanode
+				cd $HADOOP_HOME/	
+				ls -l
+				chown root -R $HADOOP_HOME/datanode
+				chmod 777 $HADOOP_HOME/datanode
+
+			- 모든 slave에서 작업
+				rm -rf $HADOOP_HOME/datanode
+				mkdir $HADOOP_HOME/datanode
+				cd $HADOOP_HOME/	
+				ls -l
+				chown root -R $HADOOP_HOME/datanode
+				chmod 777 $HADOOP_HOME/datanode
+
+	
+			- gedit $HADOOP_HOME/etc/hadoop/hdfs-site.xml (master에서 작업)
+				<configuration>
+					<property>
+						<name>dfs.replication</name>
+						<value>2</value>
+					</property>
+					<property>
+						<name>dfs.permissions</name>
+						<value>false</value>
+					</property>
+					<property>
+						<name>dfs.namenode.dir</name>
+						<value>file:/root/hadoop2/namenode</value>
+					</property>
+					<property>
+						<name>dfs.datanode.data.dir</name>
+						<value>file:/root/hadoop2/datanode</value>
+					</property>					
+				</configuration>
+
+
+			- gedit $HADOOP_HOME/etc/hadoop/hdfs-site.xml (slave1, 2, 3 에서 작업)
+				<configuration>
+					<property>
+						<name>dfs.replication</name>
+						<value>2</value>
+					</property>
+					<property>
+						<name>dfs.permissions</name>
+						<value>false</value>
+					</property>
+					<property>
+						<name>dfs.datanode.data.dir</name>
+						<value>file:/root/hadoop2/datanode</value>
+					</property>					
+				</configuration>
+
+		d) Job Tracker 설정(모든 노드에서 작성)
+			- mapred-site.xml 작성
+				cd $HADOOP_HOME/etc/hadoop
+				ls -l
+				cp mapred-site.xml.template mapred-site.xml
+			
+				gedit mapred-site.xml
+				---------------------------
+				<configuration>
+					<property>
+						<name>mapreduce.framework.name</name>
+						<value>yarn</value>
+					</property>
+				</configuration>
+
+
+			- yarn-site.xml 작성
+				gedit yarn-site.xml
+				---------------------
+				<property>
+					<name>yarn.nodemanager.aux-services</name>
+					<value>mapreduce_shuffle</value>
+				</property>
+				<property>
+					<name>yarn.nodemanager.aux-services.mapreduce.shuffle.class</name>
+					<value>org.apache.hadoop.mapred.ShuffleHandler</value>
+				</property>
+
+			scp -rp mapred-site.xml root@slave1:/root/hadoop2/etc/hadoop/mapred-site.xml
+			scp -rp yarn-site.xml root@slave1:/root/hadoop2/etc/hadoop/yarn-site.xml
+
+			scp -rp mapred-site.xml root@slave2:/root/hadoop2/etc/hadoop/mapred-site.xml
+			scp -rp yarn-site.xml root@slave2:/root/hadoop2/etc/hadoop/yarn-site.xml
+
+			scp -rp mapred-site.xml root@slave3:/root/hadoop2/etc/hadoop/mapred-site.xml
+			scp -rp yarn-site.xml root@slave3:/root/hadoop2/etc/hadoop/yarn-site.xml
+
+		e) masters, slaves 파일 편집(master에서만 작업)
+			cd $HADOOP_HOME/etc/hadoop
+			ls -l
+			
+			gedit masters
+			---------------
+			master
+
+			gedit slaves
+			---------------
+			master
+			slave1
+			slave2
+			slave3
+
+		f) 방화벽 내림(모든 노드)
+			systemctl stop firewalld.service
+			systemctl disable firewalld.service
+
+		g) 네임노드 포맷, 하둡 가동(master에서만 작업)
+			hdfs namenode -format
+			start-dfs.sh
+			start-yarn.sh
+			jps
+				master : NameNode, SecondaryNameNode, DataNode, ResourceManager, NodeManager
+				slave : DataNode, NodeManager
+
+		***. DataNode가 실행되지 않을 경우
+			master에서
+				stop-dfs.sh
+				stop-yarn.sh
+
+				rm -rf $HADOOP_HOME/namenode
+				mkdir $HADOOP_HOME/namenode
+				chown root -R $HADOOP_HOME/namenode
+				chmod 777 $HADOOP_HOME/namenode
+
+				rm -rf $HADOOP_HOME/datanode
+				mkdir $HADOOP_HOME/datanode
+				chown root -R $HADOOP_HOME/datanode
+				chmod 777 $HADOOP_HOME/datanode
+
+			slave 1, 2, 3
+				rm -rf $HADOOP_HOME/datanode
+				mkdir $HADOOP_HOME/datanode
+				chown root -R $HADOOP_HOME/datanode
+				chmod 777 $HADOOP_HOME/datanode
+
+			master에서
+				hdfs namenode -format
+				start-dfs.sh
+				start-yarn.sh
