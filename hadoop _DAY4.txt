@@ -1,0 +1,234 @@
+9/10
+
+		h) 하둡 시스템 가동
+			master에서 
+				start-dfs.sh
+				start-yarn.sh
+				jps 
+			slave에서 
+				jps
+			master에서 
+				로컬에서는 http://master:50070
+				원격으로는 http://192.168.10.1:50070
+
+4. 하둡 시스템 활용		
+			1) wordcount 라는 분석 프로그램 실행 
+				 hdfs dfs -mkdir /user
+				 hdfs dfs -mkdir /user/root
+				 hdfs dfs -mkdir /user/root/conf
+
+				 hdfs dfs ls -R /
+
+				 hdfs dfs -mkdir /upload
+				 hdfs dfs -copyFromLocal $HADOOP_HOME/README.txt /upload/README.txt
+				 (hdfs dfs -put $HADOOP_HOME/README.txt/upload/README.txt)
+
+				 hdfs dfs -ls /upload
+
+				 cd $HADOOP_HOME/share/hadoop/mapreduce
+				 ls -l
+
+				 hadoop jar hadoop-mapreduce-examples-2.10.0jar wordcount /upload/README.txt ~/wordcount_output	
+							// 다른 파일에 wordcount 수행하더라도 디렉토리가 같으면 에러가 난다. 	
+
+						
+				- safe mode 에러 발생시
+					hdfs dfsadmin -safemode leave
+					
+				hdfs dfs -ls ~/wordcount_output
+
+				hdfs dfs -cat ~/wordcount_output/part-r-00000
+				
+				-hdfs로부터 다운로드
+						hdfs dfs -get
+						hdfs dfs -copyToLocal
+						
+						hdfs dfs -copyToLocal ~/wordcount output/part-r-00000 ~/result.txt
+						cd ~
+						ls -l
+						
+			2) HDFS(Hadoop Distributed File System) : hdfs dfs -명령어
+					a) 도움말
+							hdfs dfs -help					// 다 나옴
+							hdfs dfs -help copyToLocal		//copyToLocal에 대한 도움말
+							
+					b) 목록 조회
+							hdfs dfs -ls					// 경로 지정하지 않으면 기본 사용자 폴더에 위치
+							hdfs dfs -ls 경로
+							hdfs dfs -ls -R 경로				// 경로 기준 하위폴더 모두 조회
+								또는 hdfs dfs -lsr
+								
+					c) 파일 용량 확인하고	
+							hdfs dfs -du /	
+							
+					d) 파일 내용 보기 : cat, text
+
+					e) 디렉토리 생성
+							hdfs dfs -nkdir 디렉토리명
+							
+					f) 파일 복사
+							-업로드	
+								hdfs dfs -put
+								hdfs dfs -copyFromLocal	
+							
+							-다운로드		
+								hdfs dfs -get	
+								hdfs dfs -copyToLocal
+								
+							-여러 개의 파일을 하나로 합쳐서 다운로드 : getmerge
+								cd ~
+								hdfs dfs -getmerge ~/workcount_output result
+								cat result
+								
+							-파일 복사	
+								hdfs dfs -cp ~/wordcount_output/part-r-00000 /upload/part0
+								hdfs dfs -ls /upload
+								
+								
+							-파일 이동
+								hdfs dfs -mv 이동 전 경로 이동 후 경로
+								hdfs dfs -moveFromLocal 로컬경로 hdfs 경로
+								
+								
+						g) 파일 삭제
+								hdfs dfs -rm 파일
+								hdfs dfs -rm -r 디렉토리
+								hdfs dfs -rm -rf 		//디렉토리 강제 삭제
+								
+						h) 카운트 값 조회
+								hdfs dfs -count /upload
+								hdfs dfs -count /
+								--------------------------------
+								디렉토리 갯수		파일의 갯수		파일 사이즈
+								
+						i) 파일 내용 일부분 확인
+								hdfs dfs -tail 파일명
+								hdfs dfs -head 파일명
+								hdfs dfs -cat 파일명 | head -10
+								
+						j) 권한 변경
+								hdfs dfs -chmod 숫자 디렉토리 혹은 파일
+						
+						k) 0바이트 파일 생성
+								hdfs dfs -thouchz 파일명
+								
+						
+			3) 자바 프로그래밍1	: HDFS 입출력 실습
+					a) project type : JAVA Project
+					b) project name : HADOOP
+					c) package name : hdfs
+					d) outputs : Hadoop.jar
+					e) Hadoop.jar를 리눅스 master 서버에 전송(root 폴더에 source 폴더 생성)
+						cd /root/source
+						hadoop jar Hadoop.jar hdfs.HdfsFile input.txt "Hello Hadoop~~~"
+						
+						hdfs dfs -ls input.txt
+						hdfs dfs -cat input.txt
+						
+			4) 자바 프로그래밍2 : 단어의 빈도 수 계산 프로그램
+					a) package name : count
+					b) outputs : Hadoop.jar
+					c) MapReduce 실행 방식
+                        맵 : (k1, v1) => list(k2, v2)
+                        리듀스 : (k2, list(v2)) => list3(k3, v3)
+                        
+                        - 입력 데이터
+                            read a book
+                            write a book
+                        
+                        - 맵으로 변환(key : line number, value : 문장)
+                            1, read a book
+                            2, write a book
+                        
+                        - 정렬과 병합 (key : 단어, value : 단어 수)
+                            <read, 1>
+                            <a, 1>
+                            <book, 1>
+                            <write, 1>
+                            <a, 1>
+                            <book, 1>
+							  
+						- 리듀스 단계 : (key : 단어, value : 단어 수의 리스트)
+                            <read, (1)>
+                            <a, (1, 1)>
+                            <book, (1, 1)>
+                            <write, (1)>
+                              
+                        - 실행 결과 : (key : 단어, value : 리스트의 합계)
+                            <read, 1>
+                            <a, 2>
+                            <book, 2>
+                            <write, 1>]
+
+					d) 맵리듀스 프로그래밍 요소
+							- 데이터 타입
+									맵리듀스 프로그램에서 키와 값으로 사용되는 모든 데이터 타입은 반드시
+									WriteableComparable 인터페이스를 구현해야 한다.
+									-----------------------------------------------
+									BooleanWritable	: Boolean
+									ByteWritable	:단일 byte
+									DoubleWritable	
+									FloatWritable	
+									IntWritable
+									LongWritable
+									TextWritable	:UTF-8형식의 문자열
+									NullWritable	:데이터 값이 필요없을 경우 사용
+							  
+							- Mapper
+									key와 value로 구성된 데이터를 전달받아 데이터를 가공하고 분리해 새로운 데이터 목록을 생성
+						
+							- Partitioner(선택 사항)
+									맵 태스크의 출력 데이터가 어떤 리듀스 태스크로 전달될지 결정
+						
+							- Reducer
+									맵 태스크의 출력데이터를 입력데이터로 전달받아 집계 연산 수행
+                              
+							- Combiner
+									Mapper의 출력 데이터를 입력 데이터 전달받아 연산을 수행하며 셔플할 데이터의 크기를 줄일 겨우 사용
+									
+							-Output Format
+									TextOutputFormat	:	텍스트 파일에 레코드를 출력할 때 사용
+											key와 value의 구분자는 탭 문자 사용
+									SequenceFileOutputFormat
+									SequenceFileAsBinaryOutputFormat
+									FilterOutputFormat
+									NullOutputFormat
+									
+                              
+					e) 코드 작성
+							gedit input.txt
+							----------------
+							read a book
+							write a book
+							(빈 줄)
+							
+							hdfs dfs -put input.txt /upload/input.txt
+							hdfs dfs -ls /upload
+
+			hdfs dfs ls-R /
+
+			hdfs dfs -mkdir /upload
+			hdfs dfs -copyFromLocal $HADOOP_HOME/README.txt/upload/README.txt
+			(hdfs dfs -put $HADOOP_HOME/README.txt/upload/README.txt)
+
+			hdfs dfs -ls /upload
+
+			cd $HADOOP_HOME/share/hadoop/mapreduce
+			ls -l
+
+			hadoop jar hadoop-mapreduce-examples-2.10.0jar wordcount /upload/README.txt ~/wordcount_output
+
+			- safe mode 에러 발생시
+				hdfs dfsadmin -safemode leave
+
+			hdfs dfs -ls ~/wordcount_output
+			
+			hdfs dfs -cat ~/wordcount_output/part-r-00000
+			
+			-hdfs로부터 다운로드 
+				hdfs dfs -get
+				hdfs dfs -copyToLocal
+
+				hdfs dfs -copyToLocal ~/wordcount_output/part-r-00000 ~/result.txt
+				cd ~
+				ls -l
